@@ -1,4 +1,4 @@
-# 网易云音乐 Studio
+# Neko.night - Music
 
 C++ 核心 + PyQt6 界面的 Windows 桌面网易云音乐工具。
 
@@ -6,7 +6,7 @@ C++ 核心 + PyQt6 界面的 Windows 桌面网易云音乐工具。
 
 ## 下载
 
-前往 [Releases](../../releases) 下载最新安装程序 `NeteaseMusicStudio-Setup-x.y.z.exe`，双击安装即可。
+前往 [Releases](../../releases) 下载最新安装程序 `Neko.night-Music-Setup-x.y.z.exe`，双击安装即可。
 
 系统要求：Windows 10 / 11（64 位）。
 
