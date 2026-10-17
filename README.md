@@ -10,6 +10,14 @@ C++ 核心 + PyQt6 界面的 Windows 桌面网易云音乐工具。
 
 系统要求：Windows 10 / 11（64 位）。
 
+## 从源码构建
+
+```powershell
+python -m pip install -r requirements.txt
+.\build.ps1        # 编译 C++ 核心（需要 VS2022 + CMake）
+python run.py
+```
+
 ## 功能
 
 - **本地 Cookie 直连网易云**：搜索 / 单曲 / 歌单 / 专辑 / 下载（标准～超清母带）

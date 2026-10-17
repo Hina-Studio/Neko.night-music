@@ -19,7 +19,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = config_dir()
 SETTINGS_FILE = CONFIG_DIR / "settings.json"
 COOKIE_FILE = CONFIG_DIR / "cookie.txt"
-COOKIE_ENC_FILE = CONFIG_DIR / "cookie.enc"
 
 DEFAULT_SETTINGS = {
     "download_dir": str(Path.home() / "Music" / "NeteaseApp"),
@@ -137,7 +136,6 @@ class CoreClient:
         self._last_online_parse = 0.0
         self._last_extended_call = 0.0
         self._account_uid = ""
-        self._lock_password = ""
         self.library = None
         self.load_settings()
         self.apply_settings()
@@ -174,9 +172,6 @@ class CoreClient:
             self.jx.set_timeout(max(60, timeout))
 
     def load_cookie(self):
-        if COOKIE_ENC_FILE.is_file():
-            self.client.set_cookie("")
-            return ""
         try:
             text = COOKIE_FILE.read_text(encoding="utf-8").strip()
         except OSError:
@@ -188,86 +183,11 @@ class CoreClient:
         text = (text or "").strip()
         if text and not text.endswith(";"):
             text += ";"
-        if COOKIE_ENC_FILE.is_file():
-            if not self._lock_password:
-                raise CoreError("Cookie 已锁定，请先解锁后再保存")
-            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-            COOKIE_ENC_FILE.write_text(
-                ncm_core.encrypt_secret(self._lock_password, text),
-                encoding="utf-8",
-            )
-        else:
-            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-            COOKIE_FILE.write_text(text, encoding="utf-8")
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        COOKIE_FILE.write_text(text, encoding="utf-8")
         self.client.set_cookie(text)
         self.cookie_text = text
         return text
-
-    def is_locked(self):
-        return COOKIE_ENC_FILE.is_file()
-
-    def is_unlocked(self):
-        return bool(self._lock_password)
-
-    def unlock(self, password):
-        if not COOKIE_ENC_FILE.is_file():
-            return False
-        if not password:
-            return False
-        try:
-            blob = COOKIE_ENC_FILE.read_text(encoding="utf-8").strip()
-            text = ncm_core.decrypt_secret(password, blob)
-        except Exception:  # noqa: BLE001
-            return False
-        self._lock_password = password
-        self.client.set_cookie(text)
-        self.cookie_text = text
-        return True
-
-    def enable_lock(self, password, cookie_text=None):
-        password = (password or "").strip()
-        if len(password) < 4:
-            raise CoreError("密码至少需要 4 位")
-        text = cookie_text if cookie_text is not None else self.cookie_text
-        text = (text or "").strip()
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        COOKIE_ENC_FILE.write_text(
-            ncm_core.encrypt_secret(password, text), encoding="utf-8"
-        )
-        try:
-            COOKIE_FILE.unlink()
-        except OSError:
-            pass
-        self._lock_password = password
-        self.client.set_cookie(text)
-        self.cookie_text = text
-        return True
-
-    def disable_lock(self, password=""):
-        if COOKIE_ENC_FILE.is_file() and not self._lock_password:
-            if not password or not self.unlock(password):
-                return False
-        text = self.cookie_text or ""
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        COOKIE_FILE.write_text(text, encoding="utf-8")
-        try:
-            COOKIE_ENC_FILE.unlink()
-        except OSError:
-            pass
-        self._lock_password = ""
-        return True
-
-    def change_lock_password(self, old_password, new_password):
-        if len((new_password or "").strip()) < 4:
-            raise CoreError("密码至少需要 4 位")
-        if not self.unlock(old_password):
-            return False
-        COOKIE_ENC_FILE.write_text(
-            ncm_core.encrypt_secret(new_password.strip(), self.cookie_text),
-            encoding="utf-8",
-        )
-        self._lock_password = new_password.strip()
-        return True
 
     def has_cookie(self):
         return bool(self.client.cookie())

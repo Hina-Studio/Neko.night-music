@@ -422,9 +422,7 @@ class MainWindow(QMainWindow):
         self._refresh_login_state()
         if self.core.settings.get("desktop_lyrics"):
             self.toggle_desktop_lyrics()
-        if self.core.has_cookie() and not (
-            self.core.is_locked() and not self.core.is_unlocked()
-        ):
+        if self.core.has_cookie():
             run_async(
                 lambda: self.core._parse(self.core.client.user_account()),
                 on_done=self._update_api_account,
@@ -1100,10 +1098,6 @@ class MainWindow(QMainWindow):
         )
 
     def _require_cookie(self, silent=False):
-        if self.core.is_locked() and not self.core.is_unlocked():
-            if not silent:
-                QMessageBox.warning(self, "已锁定", "Cookie 已锁定，请先在设置页解锁。")
-            return False
         if not self.core.has_cookie():
             if not silent:
                 QMessageBox.warning(self, "未登录", "该功能需要登录网易云账号。")
@@ -1344,27 +1338,6 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
-        self.api_lock_card = QFrame()
-        self.api_lock_card.setObjectName("Panel")
-        lock_layout = QHBoxLayout(self.api_lock_card)
-        self.api_lock_status = QLabel("")
-        self.api_lock_status.setObjectName("SubTitle")
-        lock_layout.addWidget(self.api_lock_status, 1)
-        self.api_lock_password = QLineEdit()
-        self.api_lock_password.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_lock_password.setPlaceholderText("Cookie 密码")
-        self.api_lock_password.setFixedWidth(180)
-        self.api_lock_password.returnPressed.connect(self._unlock_api_page)
-        lock_layout.addWidget(self.api_lock_password)
-        self.api_unlock_btn = QPushButton("解锁")
-        self.api_unlock_btn.setObjectName("Accent")
-        self.api_unlock_btn.clicked.connect(self._unlock_api_page)
-        lock_layout.addWidget(self.api_unlock_btn)
-        self.api_goto_settings_btn = QPushButton("去启用密码锁")
-        self.api_goto_settings_btn.clicked.connect(self._goto_settings_page)
-        lock_layout.addWidget(self.api_goto_settings_btn)
-        layout.addWidget(self.api_lock_card)
-
         card = QFrame()
         card.setObjectName("Panel")
         card_layout = QVBoxLayout(card)
@@ -1457,16 +1430,6 @@ class MainWindow(QMainWindow):
         self.api_input.setPlaceholderText(placeholders.get(op, ""))
 
     def run_api_op(self):
-        if not self.core.is_locked():
-            QMessageBox.warning(
-                self,
-                "解析页已锁定",
-                "请先到设置页启用「Cookie 密码锁」，解析页才能使用。",
-            )
-            return
-        if not self.core.is_unlocked():
-            QMessageBox.warning(self, "解析页已锁定", "请先输入 Cookie 密码解锁。")
-            return
         op = self.api_op_combo.currentData()
         text = self.api_input.text().strip()
         level = self.api_level_combo.currentData()
@@ -1695,30 +1658,6 @@ class MainWindow(QMainWindow):
         account_row.addWidget(self.cookie_status, 1)
         account_layout.addLayout(account_row)
         layout.addWidget(account)
-
-        lock = QFrame()
-        lock.setObjectName("Panel")
-        lock_layout = QVBoxLayout(lock)
-        lock_layout.addWidget(self._section_label("Cookie 密码锁"))
-        self.lock_status = QLabel("")
-        self.lock_status.setObjectName("SubTitle")
-        lock_layout.addWidget(self.lock_status)
-        lock_row = QHBoxLayout()
-        self.lock_password_edit = QLineEdit()
-        self.lock_password_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.lock_password_edit.setPlaceholderText("输入密码（至少 4 位）")
-        lock_row.addWidget(self.lock_password_edit, 1)
-        self.lock_enable_btn = QPushButton("启用密码锁")
-        self.lock_enable_btn.clicked.connect(self.enable_lock)
-        self.lock_unlock_btn = QPushButton("解锁")
-        self.lock_unlock_btn.clicked.connect(self.unlock_cookie)
-        self.lock_disable_btn = QPushButton("关闭密码锁")
-        self.lock_disable_btn.clicked.connect(self.disable_lock)
-        lock_row.addWidget(self.lock_enable_btn)
-        lock_row.addWidget(self.lock_unlock_btn)
-        lock_row.addWidget(self.lock_disable_btn)
-        lock_layout.addLayout(lock_row)
-        layout.addWidget(lock)
 
         save_btn = QPushButton("保存设置")
         save_btn.setObjectName("Accent")
@@ -1971,9 +1910,6 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("设置已保存", 3000)
 
     def save_cookie(self):
-        if self.core.is_locked() and not self.core.is_unlocked():
-            QMessageBox.warning(self, "已锁定", "Cookie 已加密锁定，请先输入密码解锁。")
-            return
         try:
             self.core.save_cookie(self.cookie_edit.toPlainText())
         except CoreError as exc:
@@ -1983,9 +1919,6 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Cookie 已保存", 3000)
 
     def qr_login(self):
-        if self.core.is_locked() and not self.core.is_unlocked():
-            QMessageBox.warning(self, "已锁定", "Cookie 已加密锁定，请先输入密码解锁。")
-            return
         dialog = QRLoginDialog(self.core, self)
         if dialog.exec():
             self.cookie_edit.setPlainText(self.core.cookie_text)
@@ -1993,9 +1926,6 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "登录成功", "扫码登录成功，Cookie 已保存。")
 
     def account_login(self):
-        if self.core.is_locked() and not self.core.is_unlocked():
-            QMessageBox.warning(self, "已锁定", "Cookie 已加密锁定，请先输入密码解锁。")
-            return
         username = self.account_edit.text().strip()
         password = self.account_password_edit.text()
         if not username or not password:
@@ -2033,9 +1963,6 @@ class MainWindow(QMainWindow):
         self.on_error(message)
 
     def web_login(self):
-        if self.core.is_locked() and not self.core.is_unlocked():
-            QMessageBox.warning(self, "已锁定", "Cookie 已加密锁定，请先输入密码解锁。")
-            return
         if getattr(self, "_web_login_running", False):
             return
         self._web_login_running = True
@@ -2110,118 +2037,7 @@ class MainWindow(QMainWindow):
         self.web_btn.setText("网页登录")
         self.on_error(message)
 
-    def enable_lock(self):
-        if self.core.is_locked():
-            QMessageBox.information(self, "已启用", "密码锁已启用；如需更换密码请先关闭再启用。")
-            return
-        password = self.lock_password_edit.text().strip()
-        if len(password) < 4:
-            QMessageBox.warning(self, "密码太短", "请设置至少 4 位密码。")
-            return
-        try:
-            self.core.enable_lock(password, self.cookie_edit.toPlainText())
-        except CoreError as exc:
-            QMessageBox.warning(self, "启用失败", str(exc))
-            return
-        self.lock_password_edit.clear()
-        self._refresh_lock_state()
-        QMessageBox.information(
-            self, "已启用", "Cookie 已加密保存，下次启动需要密码解锁。"
-        )
-
-    def unlock_cookie(self):
-        password = self.lock_password_edit.text()
-        if not password:
-            QMessageBox.warning(self, "提示", "请输入密码。")
-            return
-        if self.core.unlock(password):
-            self.cookie_edit.setPlainText(self.core.cookie_text)
-            self.lock_password_edit.clear()
-            self._refresh_lock_state()
-            self.statusBar().showMessage("Cookie 已解锁", 3000)
-        else:
-            QMessageBox.warning(self, "解锁失败", "密码错误。")
-
-    def disable_lock(self):
-        password = self.lock_password_edit.text()
-        if not self.core.disable_lock(password):
-            QMessageBox.warning(self, "关闭失败", "密码错误，或未启用密码锁。")
-            return
-        self.lock_password_edit.clear()
-        self.cookie_edit.setPlainText(self.core.cookie_text)
-        self._refresh_lock_state()
-        QMessageBox.information(
-            self, "已关闭", "密码锁已关闭，Cookie 以明文保存在 config/cookie.txt。"
-        )
-
-    def _refresh_lock_state(self):
-        locked = self.core.is_locked()
-        unlocked = self.core.is_unlocked()
-        if locked and unlocked:
-            self.lock_status.setText("已启用（本次会话已解锁）")
-        elif locked:
-            self.lock_status.setText("已启用（未解锁，本地音源不可用）")
-        else:
-            self.lock_status.setText("未启用（Cookie 以明文保存在 config/cookie.txt）")
-        self.lock_enable_btn.setVisible(not locked)
-        self.lock_unlock_btn.setVisible(locked and not unlocked)
-        self.lock_disable_btn.setVisible(locked)
-        self.cookie_edit.setEnabled(not locked or unlocked)
-        self.save_cookie_btn.setEnabled(not locked or unlocked)
-        self.qr_btn.setEnabled(not locked or unlocked)
-        self.web_btn.setEnabled(not locked or unlocked)
-        self._refresh_api_lock()
-
-    def _goto_settings_page(self):
-        self.nav.setCurrentRow(self.nav_settings_index)
-
-    def _unlock_api_page(self):
-        password = self.api_lock_password.text()
-        if not password:
-            return
-        if self.core.unlock(password):
-            self.api_lock_password.clear()
-            self.cookie_edit.setPlainText(self.core.cookie_text)
-            self._refresh_login_state()
-            self.statusBar().showMessage("解析页已解锁", 3000)
-        else:
-            QMessageBox.warning(self, "解锁失败", "密码错误。")
-
-    def _refresh_api_lock(self):
-        if not hasattr(self, "api_lock_card"):
-            return
-        if not self.core.is_locked():
-            self.api_lock_card.show()
-            self.api_lock_status.setText(
-                "解析页已锁定：请先到设置页启用「Cookie 密码锁」，再用密码解锁。"
-            )
-            self.api_lock_password.setVisible(False)
-            self.api_unlock_btn.setVisible(False)
-            self.api_goto_settings_btn.setVisible(True)
-            enabled = False
-        elif not self.core.is_unlocked():
-            self.api_lock_card.show()
-            self.api_lock_status.setText("解析页已锁定，请输入 Cookie 密码解锁：")
-            self.api_lock_password.setVisible(True)
-            self.api_unlock_btn.setVisible(True)
-            self.api_goto_settings_btn.setVisible(False)
-            enabled = False
-        else:
-            self.api_lock_card.hide()
-            enabled = True
-        self.api_card.setEnabled(enabled)
-        self.api_output.setEnabled(enabled)
-        if self.nav_api_index >= 0 and self.nav.count() > self.nav_api_index:
-            self.nav.item(self.nav_api_index).setText(
-                "🧩  解析" if enabled else "🧩  解析 🔒"
-            )
-
     def _refresh_login_state(self):
-        self._refresh_lock_state()
-        if self.core.is_locked() and not self.core.is_unlocked():
-            self.login_label.setText("Cookie 已锁定")
-            self.cookie_status.setText("密码锁已启用，请到设置页解锁")
-            return
         if self.core.has_cookie():
             self.login_label.setText("已配置 Cookie")
             self.cookie_status.setText("Cookie 已配置，可解析 VIP 音质")
@@ -3265,19 +3081,6 @@ def main():
     app.aboutToQuit.connect(shutdown)
 
     core = CoreClient()
-    if core.is_locked():
-        for _ in range(3):
-            password, ok = QInputDialog.getText(
-                None,
-                "解锁 Cookie",
-                "Cookie 已加密锁定，请输入密码：",
-                QLineEdit.EchoMode.Password,
-            )
-            if not ok:
-                break
-            if core.unlock(password):
-                break
-            QMessageBox.warning(None, "密码错误", "密码错误，请重试。")
     window = MainWindow(core)
     window.show()
     sys.exit(app.exec())
