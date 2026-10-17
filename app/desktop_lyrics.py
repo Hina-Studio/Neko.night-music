@@ -8,6 +8,20 @@ from PyQt6.QtWidgets import QMenu, QWidget
 
 from now_playing import parse_lrc
 
+COLOR_PRESETS = {
+    "white": "白色",
+    "gold": "暖金",
+    "pink": "樱粉",
+    "blue": "天蓝",
+}
+
+COLORS = {
+    "white": QColor(255, 255, 255),
+    "gold": QColor(255, 214, 140),
+    "pink": QColor(255, 170, 205),
+    "blue": QColor(150, 205, 255),
+}
+
 
 class DesktopLyrics(QWidget):
     def __init__(self, window):
@@ -26,6 +40,10 @@ class DesktopLyrics(QWidget):
         settings = window.core.settings
         self._font_size = int(settings.get("lyrics_font_size", 28))
         self._locked = bool(settings.get("lyrics_locked", False))
+        self._color_name = str(settings.get("lyrics_color", "white"))
+        if self._color_name not in COLORS:
+            self._color_name = "white"
+        self._single_line = bool(settings.get("lyrics_single_line", False))
         self.resize(920, 160)
         position = settings.get("lyrics_pos") or [120, 120]
         try:
@@ -70,17 +88,26 @@ class DesktopLyrics(QWidget):
                             QColor(255, 255, 255, 190), 0.5)
             return
         current = self._entries[self._current]
-        self._draw_line(painter, current[1], self._font_size,
-                        QColor(255, 255, 255, 246), 0.36)
+        base = COLORS[self._color_name]
+        main_color = QColor(base)
+        main_color.setAlpha(246)
+        self._draw_line(painter, current[1], self._font_size, main_color, 0.36)
+        if self._single_line:
+            return
         if current[2]:
-            self._draw_line(painter, current[2], max(13, self._font_size - 8),
-                            QColor(255, 255, 255, 200), 0.64)
+            sub_color = QColor(base)
+            sub_color.setAlpha(200)
+            self._draw_line(
+                painter, current[2], max(13, self._font_size - 8), sub_color, 0.64
+            )
         if self._current + 1 < len(self._entries):
+            next_color = QColor(base)
+            next_color.setAlpha(120)
             self._draw_line(
                 painter,
                 self._entries[self._current + 1][1],
                 max(13, self._font_size - 8),
-                QColor(255, 255, 255, 120),
+                next_color,
                 0.86,
             )
 
@@ -127,11 +154,37 @@ class DesktopLyrics(QWidget):
     def contextMenuEvent(self, event):
         menu = QMenu(self)
         menu.addAction("解锁位置" if self._locked else "锁定位置", self.toggle_lock)
+        color_menu = menu.addMenu("颜色")
+        for key, name in COLOR_PRESETS.items():
+            action = color_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(key == self._color_name)
+            action.triggered.connect(
+                lambda _checked=False, value=key: self.set_color(value)
+            )
+        single = menu.addAction("单行模式（只显示当前句）")
+        single.setCheckable(True)
+        single.setChecked(self._single_line)
+        single.toggled.connect(self.set_single_line)
         menu.addAction("字体 +", lambda: self.change_font(2))
         menu.addAction("字体 -", lambda: self.change_font(-2))
         menu.addSeparator()
         menu.addAction("关闭桌面歌词", self.close_lyrics)
         menu.exec(event.globalPosition().toPoint())
+
+    def set_color(self, name):
+        if name not in COLORS:
+            return
+        self._color_name = name
+        self.window.core.settings["lyrics_color"] = name
+        self.window.core.save_settings()
+        self.update()
+
+    def set_single_line(self, enabled):
+        self._single_line = bool(enabled)
+        self.window.core.settings["lyrics_single_line"] = self._single_line
+        self.window.core.save_settings()
+        self.update()
 
     def toggle_lock(self):
         self._locked = not self._locked

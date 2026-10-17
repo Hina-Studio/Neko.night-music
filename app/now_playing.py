@@ -120,10 +120,15 @@ class VinylWidget(QWidget):
         self._arm_anim = QPropertyAnimation(self, b"armAngle", self)
         self._arm_anim.setDuration(300)
         self._arm_anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self._spectrum = []
         self.setMinimumSize(300, 280)
 
     def set_cover(self, pixmap):
         self._cover = pixmap if pixmap is not None else QPixmap()
+        self.update()
+
+    def set_spectrum(self, values):
+        self._spectrum = list(values or [])
         self.update()
 
     def set_playing(self, playing):
@@ -166,9 +171,10 @@ class VinylWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        side = max(220.0, min(self.width(), self.height()) - 30.0)
+        reserved = 52.0
+        side = max(200.0, min(self.width(), self.height() - reserved) - 30.0)
         cx = self.width() / 2.0
-        cy = self.height() / 2.0 + 8.0
+        cy = (self.height() - reserved) / 2.0 + 8.0
         disc_r = side / 2.0
 
         painter.setPen(Qt.PenStyle.NoPen)
@@ -236,6 +242,33 @@ class VinylWidget(QWidget):
         painter.drawEllipse(QRectF(cx - 5, cy - 5, 10, 10))
 
         self._draw_arm(painter, cx, cy, disc_r)
+        self._draw_spectrum(painter)
+
+    def _draw_spectrum(self, painter):
+        values = self._spectrum
+        if not values:
+            return
+        count = len(values)
+        margin = 16.0
+        width = self.width() - margin * 2
+        if width <= 0 or count == 0:
+            return
+        slot = width / count
+        bar_width = max(1.5, slot - 2.0)
+        base_y = self.height() - 8.0
+        max_height = min(40.0, self.height() * 0.16)
+        painter.setPen(Qt.PenStyle.NoPen)
+        for index, value in enumerate(values):
+            level = max(0.0, min(1.0, float(value)))
+            height = max_height * level
+            if height < 1.5:
+                continue
+            x = margin + index * slot
+            color = QColor(255, 214, 140, 120 + int(90 * level))
+            painter.setBrush(color)
+            painter.drawRoundedRect(
+                QRectF(x, base_y - height, bar_width, height), 1.5, 1.5
+            )
 
     def _draw_arm(self, painter, cx, cy, disc_r):
         pivot = QPointF(cx + disc_r * 0.36, cy - disc_r * 0.94)
@@ -401,6 +434,16 @@ class NowPlayingWindow(QWidget):
         self._build_ui()
         self._connect_player()
         self.refresh()
+        self._spectrum = None
+        try:
+            import ncm_core
+
+            self._spectrum = ncm_core.Spectrum()
+        except Exception:
+            self._spectrum = None
+        self._spectrum_timer = QTimer(self)
+        self._spectrum_timer.setInterval(40)
+        self._spectrum_timer.timeout.connect(self._poll_spectrum)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -558,6 +601,27 @@ class NowPlayingWindow(QWidget):
         for position, button in enumerate(self.tab_buttons):
             button.setChecked(position == index)
         self.stack.setCurrentIndex(index)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._spectrum is not None:
+            self._spectrum_timer.start()
+
+    def hideEvent(self, event):
+        self._spectrum_timer.stop()
+        super().hideEvent(event)
+
+    def _poll_spectrum(self):
+        if self._spectrum is None:
+            return
+        try:
+            values = self._spectrum.snapshot()
+        except Exception:
+            self._spectrum_timer.stop()
+            self._spectrum = None
+            self.vinyl.set_spectrum([])
+            return
+        self.vinyl.set_spectrum(values)
 
     def _connect_player(self):
         player = self.window.player

@@ -14,6 +14,7 @@ set(NCM_SOURCES
     core/src/http.cpp
     core/src/api.cpp
     core/src/bindings.cpp
+    core/src/spectrum.cpp
 )
 
 if(NOT NCM_PUBLIC)
@@ -30,7 +31,7 @@ target_include_directories(ncm_core PRIVATE
     core/third_party
 )
 
-target_link_libraries(ncm_core PRIVATE winhttp bcrypt)
+target_link_libraries(ncm_core PRIVATE winhttp bcrypt ole32)
 
 target_compile_definitions(ncm_core PRIVATE _WIN32_WINNT=0x0A00 NOMINMAX WIN32_LEAN_AND_MEAN)
 

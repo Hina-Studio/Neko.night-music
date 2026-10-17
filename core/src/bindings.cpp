@@ -8,6 +8,7 @@
 
 #include "ncm/api.hpp"
 #include "ncm/crypto.hpp"
+#include "ncm/spectrum.hpp"
 #ifndef NCM_PUBLIC
 #include "ncm/musicjx.hpp"
 #include "ncm/nextmusic.hpp"
@@ -168,8 +169,14 @@ PYBIND11_MODULE(ncm_core, m) {
 
     m.attr("__version__") = "0.3.0";
 
-    m.def("encrypt_secret", &ncm::encrypt_secret, py::arg("password"),
-          py::arg("plaintext"), py::call_guard<py::gil_scoped_release>());
-    m.def("decrypt_secret", &ncm::decrypt_secret, py::arg("password"),
-          py::arg("blob"), py::call_guard<py::gil_scoped_release>());
+  m.def("encrypt_secret", &ncm::encrypt_secret, py::arg("password"),
+        py::arg("plaintext"), py::call_guard<py::gil_scoped_release>());
+  m.def("decrypt_secret", &ncm::decrypt_secret, py::arg("password"),
+        py::arg("blob"), py::call_guard<py::gil_scoped_release>());
+
+  py::class_<ncm::Spectrum>(m, "Spectrum")
+      .def(py::init<>())
+      .def("snapshot", &ncm::Spectrum::snapshot,
+           py::call_guard<py::gil_scoped_release>())
+      .def("state", &ncm::Spectrum::state);
 }

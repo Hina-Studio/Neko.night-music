@@ -42,6 +42,8 @@ DEFAULT_SETTINGS = {
     "lyrics_font_size": 28,
     "lyrics_pos": [120, 120],
     "lyrics_locked": False,
+    "lyrics_color": "white",
+    "lyrics_single_line": False,
     "mini_mode": False,
 }
 

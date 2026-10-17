@@ -11,7 +11,7 @@ from pathlib import Path
 import qrcode
 import requests
 from PyQt6.QtCore import QEvent, Qt, QTimer, QUrl, pyqtSignal
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -53,11 +53,12 @@ from core_client import (
 )
 from edition import PUBLIC_EDITION
 from player import Player
+from update_checker import RELEASES_URL, UpdateChecker, is_newer
 from workers import ProgressBridge, get_download_pool, run_async, run_download, shutdown
 
 TRACK_ROLE = Qt.ItemDataRole.UserRole
 
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.2.0"
 
 NAV_SEARCH = 0
 NAV_DISCOVER = 1
@@ -409,6 +410,10 @@ class MainWindow(QMainWindow):
         self._sleep_timer = QTimer(self)
         self._sleep_timer.setSingleShot(True)
         self._sleep_timer.timeout.connect(self._on_sleep_timeout)
+        self._update_checker = UpdateChecker(self)
+        self._update_checker.checked.connect(self._on_update_checked)
+        self._update_url = RELEASES_URL
+        self._manual_update_check = False
 
         self.setWindowTitle("Neko.night - Music")
         self.resize(1200, 780)
@@ -428,6 +433,7 @@ class MainWindow(QMainWindow):
                 on_done=self._update_api_account,
                 on_error=lambda _message: None,
             )
+        QTimer.singleShot(4000, self._update_checker.check)
 
     @staticmethod
     def _nav_items():
@@ -1228,6 +1234,9 @@ class MainWindow(QMainWindow):
         del_btn = QPushButton("删除歌单")
         del_btn.clicked.connect(self._delete_local_playlist)
         card_layout.addWidget(del_btn)
+        export_btn = QPushButton("导出歌单")
+        export_btn.clicked.connect(self._export_local_playlist)
+        card_layout.addWidget(export_btn)
         scan_btn = QPushButton("扫描目录")
         scan_btn.setObjectName("Accent")
         scan_btn.clicked.connect(self._scan_library)
@@ -1678,8 +1687,119 @@ class MainWindow(QMainWindow):
         about_layout.addWidget(about_label)
         layout.addWidget(about)
 
+        layout.addWidget(self._build_maintenance_panel())
+
         layout.addStretch(1)
         return page
+
+    def _build_maintenance_panel(self):
+        panel = QFrame()
+        panel.setObjectName("Panel")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.addWidget(self._section_label("维护与更新"))
+
+        cache_row = QHBoxLayout()
+        self.cache_label = QLabel("")
+        self.cache_label.setObjectName("SubTitle")
+        cache_row.addWidget(self.cache_label, 1)
+        clear_cache_btn = QPushButton("清理封面缓存")
+        clear_cache_btn.clicked.connect(self._clear_cache)
+        cache_row.addWidget(clear_cache_btn)
+        panel_layout.addLayout(cache_row)
+
+        update_row = QHBoxLayout()
+        self.update_status = QLabel(f"当前版本 v{APP_VERSION}")
+        self.update_status.setObjectName("SubTitle")
+        update_row.addWidget(self.update_status, 1)
+        self.update_download_btn = QPushButton("打开下载页")
+        self.update_download_btn.setObjectName("Accent")
+        self.update_download_btn.setVisible(False)
+        self.update_download_btn.clicked.connect(self._open_releases_page)
+        update_row.addWidget(self.update_download_btn)
+        self.update_btn = QPushButton("检查更新")
+        self.update_btn.clicked.connect(self._check_updates_manual)
+        update_row.addWidget(self.update_btn)
+        panel_layout.addLayout(update_row)
+
+        self._refresh_cache_label()
+        return panel
+
+    def _cache_size(self):
+        from library import COVERS_DIR
+
+        total = 0
+        if COVERS_DIR.is_dir():
+            for path in COVERS_DIR.iterdir():
+                try:
+                    if path.is_file():
+                        total += path.stat().st_size
+                except OSError:
+                    continue
+        return total
+
+    def _refresh_cache_label(self):
+        if not hasattr(self, "cache_label"):
+            return
+        self.cache_label.setText(
+            f"封面缓存 {format_size(self._cache_size()) or '0B'}"
+        )
+
+    def _clear_cache(self):
+        from library import COVERS_DIR
+
+        if (
+            QMessageBox.question(
+                self,
+                "清理缓存",
+                "确定清空封面缓存吗？下次浏览时会重新下载。",
+            )
+            != QMessageBox.StandardButton.Yes
+        ):
+            return
+        removed = 0
+        if COVERS_DIR.is_dir():
+            for path in COVERS_DIR.iterdir():
+                try:
+                    if path.is_file():
+                        path.unlink()
+                        removed += 1
+                except OSError:
+                    continue
+        self.cover_cache.clear()
+        self._refresh_cache_label()
+        self.statusBar().showMessage(f"已清理 {removed} 个封面缓存文件", 5000)
+
+    def _check_updates_manual(self):
+        self._manual_update_check = True
+        self.update_status.setText("正在检查更新…")
+        self.update_btn.setEnabled(False)
+        self._update_checker.check()
+
+    def _open_releases_page(self):
+        QDesktopServices.openUrl(QUrl(self._update_url or RELEASES_URL))
+
+    def _on_update_checked(self, tag, url):
+        self.update_btn.setEnabled(True)
+        if url:
+            self._update_url = url
+        manual = self._manual_update_check
+        self._manual_update_check = False
+        if not tag:
+            if manual:
+                self.update_status.setText("检查更新失败，请稍后再试")
+            return
+        if is_newer(tag, APP_VERSION):
+            self.update_status.setText(
+                f"发现新版本 v{tag}（当前 v{APP_VERSION}）"
+            )
+            self.update_download_btn.setVisible(True)
+            if not manual:
+                self.statusBar().showMessage(
+                    f"发现新版本 v{tag}，可在设置页打开下载页", 12000
+                )
+        else:
+            self.update_status.setText(f"已是最新版本 v{APP_VERSION}")
+            self.update_download_btn.setVisible(False)
 
     def _section_label(self, text):
         label = QLabel(text)
@@ -2509,6 +2629,49 @@ class MainWindow(QMainWindow):
         )
         self._refresh_local_playlists()
         self._refresh_local_tracks()
+
+    def _export_local_playlist(self):
+        playlist_id = self.local_playlist_combo.currentData()
+        if playlist_id is None:
+            QMessageBox.information(
+                self, "导出歌单", "请先在列表下拉框中选择一个本地歌单。"
+            )
+            return
+        tracks = self.library.playlist_tracks(playlist_id)
+        if not tracks:
+            QMessageBox.information(self, "导出歌单", "该歌单还没有歌曲。")
+            return
+        name = self.local_playlist_combo.currentText().replace("/", "_")
+        target, selected = QFileDialog.getSaveFileName(
+            self,
+            "导出歌单",
+            str(Path.home() / f"{name}.m3u8"),
+            "M3U8 播放列表 (*.m3u8);;文本清单 (*.txt)",
+        )
+        if not target:
+            return
+        lines = []
+        if target.lower().endswith(".txt") or "txt" in selected:
+            for index, track in enumerate(tracks, 1):
+                lines.append(
+                    f"{index}. {track.get('title', '')} - "
+                    f"{track.get('artist', '')}"
+                )
+        else:
+            lines.append("#EXTM3U")
+            for track in tracks:
+                duration = int(round((track.get("duration") or 0) / 1000))
+                lines.append(
+                    f"#EXTINF:{duration},{track.get('artist', '')} - "
+                    f"{track.get('title', '')}"
+                )
+                lines.append(str(track.get("path", "")))
+        try:
+            Path(target).write_text("\n".join(lines) + "\n", encoding="utf-8")
+        except OSError as error:
+            QMessageBox.warning(self, "导出失败", str(error))
+            return
+        self.statusBar().showMessage(f"已导出 {len(tracks)} 首：{target}", 8000)
 
     def _refresh_local_playlists(self):
         if not hasattr(self, "local_playlist_combo"):
