@@ -1,6 +1,8 @@
 #include "ncm/api.hpp"
 
+#ifdef _WIN32
 #include <windows.h>
+#endif
 
 #include <nlohmann/json.hpp>
 
@@ -49,7 +51,8 @@ const char* kArtistSongsApi = "https://music.163.com/api/v1/artist/songs";
 const char* kArtistAlbumsApi = "https://music.163.com/api/artist/albums/";
 const char* kNewSongsApi = "https://music.163.com/api/v1/discovery/new/songs";
 
-std::wstring to_wide(const std::string& value) {
+std::filesystem::path to_path(const std::string& value) {
+#ifdef _WIN32
     if (value.empty()) {
         return {};
     }
@@ -61,7 +64,10 @@ std::wstring to_wide(const std::string& value) {
     std::wstring out(static_cast<std::size_t>(len), L'\0');
     MultiByteToWideChar(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()),
                         out.data(), len);
-    return out;
+    return std::filesystem::path(out);
+#else
+    return std::filesystem::path(value);
+#endif
 }
 
 std::string trim(const std::string& value) {
@@ -938,7 +944,7 @@ std::string Client::download_song(
     const std::string filename =
         sanitize_filename(name + " [" + level + "]") + "." + type;
     const std::filesystem::path target =
-        std::filesystem::path(to_wide(trim(directory))) / to_wide(filename);
+        to_path(trim(directory)) / to_path(filename);
 
     std::error_code error_code;
     std::filesystem::create_directories(target.parent_path(), error_code);
@@ -990,7 +996,7 @@ std::string Client::download_url(
         }
     }
     const std::filesystem::path target =
-        std::filesystem::path(to_wide(trim(directory))) / to_wide(name);
+        to_path(trim(directory)) / to_path(name);
     std::error_code error_code;
     std::filesystem::create_directories(target.parent_path(), error_code);
 

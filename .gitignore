@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.exp
+*.lib
+build/
+build_linux/
+dist_linux/
+release/
+config/cookie.txt
+config/edge_profile/
+config/covers/
+.env
+.venv/
+venv/

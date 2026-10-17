@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Standalone real-Edge login helper for the Netease app.
+"""Standalone real-browser login helper for the Netease app.
 
 Usage:
     python web_login.py <result_json> [profile_dir]
 
-Launches the real Microsoft Edge (not an embedded WebView, so the browser
-fingerprint is clean) with a dedicated profile and CDP enabled, opens the
-Netease login page and polls cookies through the DevTools protocol. When
-MUSIC_U appears it writes {"music_u": "..."} and closes Edge.
+Launches a real Chromium-family browser (Edge on Windows, Chrome/Chromium on
+Linux) with a dedicated profile and CDP enabled, opens the Netease login page
+and polls cookies through the DevTools protocol. When MUSIC_U appears it
+writes {"music_u": "..."} and closes the browser.
 
-Exit codes: 0 success, 2 closed without login, 3 Edge not found.
+Exit codes: 0 success, 2 closed without login, 3 browser not found.
 """
 import json
+import shutil
 import socket
 import subprocess
 import sys
@@ -23,6 +24,14 @@ EDGE_CANDIDATES = (
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
 )
+LINUX_BROWSERS = (
+    "microsoft-edge",
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+    "brave-browser",
+)
 
 LOGIN_URL = (
     "https://music.163.com/login?targetUrl=https%3A%2F%2Fmusic.163.com%2F"
@@ -30,9 +39,15 @@ LOGIN_URL = (
 LOGIN_TIMEOUT = 900
 
 
-def find_edge():
-    for path in EDGE_CANDIDATES:
-        if Path(path).is_file():
+def find_browser():
+    if sys.platform == "win32":
+        for path in EDGE_CANDIDATES:
+            if Path(path).is_file():
+                return path
+        return ""
+    for name in LINUX_BROWSERS:
+        path = shutil.which(name)
+        if path:
             return path
     return ""
 
@@ -79,15 +94,15 @@ def main():
                 Path(__file__).resolve().parent.parent / "config" / "edge_profile"
             )
 
-    edge = find_edge()
-    if not edge:
+    browser = find_browser()
+    if not browser:
         result_path.write_text(json.dumps({"music_u": ""}), encoding="utf-8")
         return 3
 
     port = free_port()
     proc = subprocess.Popen(
         [
-            edge,
+            browser,
             f"--remote-debugging-port={port}",
             f"--user-data-dir={profile}",
             "--remote-allow-origins=*",

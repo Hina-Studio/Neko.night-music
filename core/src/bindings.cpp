@@ -8,7 +8,9 @@
 
 #include "ncm/api.hpp"
 #include "ncm/crypto.hpp"
+#ifdef _WIN32
 #include "ncm/spectrum.hpp"
+#endif
 #ifndef NCM_PUBLIC
 #include "ncm/musicjx.hpp"
 #include "ncm/nextmusic.hpp"
@@ -31,7 +33,7 @@ std::function<bool(std::uint64_t, std::uint64_t)> make_progress(py::object progr
 }
 
 PYBIND11_MODULE(ncm_core, m) {
-    m.doc() = "Netease Cloud Music C++ core (WinHTTP + BCrypt)";
+    m.doc() = "Netease Cloud Music C++ core (portable HTTP + crypto)";
 
     py::class_<ncm::Client>(m, "Client")
         .def(py::init<>())
@@ -174,9 +176,11 @@ PYBIND11_MODULE(ncm_core, m) {
   m.def("decrypt_secret", &ncm::decrypt_secret, py::arg("password"),
         py::arg("blob"), py::call_guard<py::gil_scoped_release>());
 
+#ifdef _WIN32
   py::class_<ncm::Spectrum>(m, "Spectrum")
       .def(py::init<>())
       .def("snapshot", &ncm::Spectrum::snapshot,
            py::call_guard<py::gil_scoped_release>())
       .def("state", &ncm::Spectrum::state);
+#endif
 }

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """Runtime path helpers.
 
-Frozen builds put user data in ``%LOCALAPPDATA%/NekoNightMusic/config``
-unless a ``portable.txt`` marker sits next to the executable.
+Frozen builds put user data in ``%LOCALAPPDATA%/NekoNightMusic/config`` on
+Windows or ``$XDG_CONFIG_HOME/NekoNightMusic/config`` (``~/.config`` by
+default) elsewhere, unless a ``portable.txt`` marker sits next to the
+executable.
 """
 import os
 import sys
@@ -20,17 +22,22 @@ def app_dir():
 
 
 def _local_data_root():
-    root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
-    if not root:
-        return None
-    base = Path(root) / "NekoNightMusic"
-    legacy = Path(root) / "NeteaseMusicStudio"
-    if not base.exists() and legacy.is_dir():
-        try:
-            legacy.rename(base)
-        except OSError:
-            pass
-    return base
+    if sys.platform == "win32":
+        root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        if not root:
+            return None
+        base = Path(root) / "NekoNightMusic"
+        legacy = Path(root) / "NeteaseMusicStudio"
+        if not base.exists() and legacy.is_dir():
+            try:
+                legacy.rename(base)
+            except OSError:
+                pass
+        return base
+    root = os.environ.get("XDG_CONFIG_HOME")
+    if root:
+        return Path(root) / "NekoNightMusic"
+    return Path.home() / ".config" / "NekoNightMusic"
 
 
 def config_dir():

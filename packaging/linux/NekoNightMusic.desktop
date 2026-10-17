@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Neko.night - Music
+Name[zh_CN]=Neko.night - 音乐
+Comment=NetEase Cloud Music desktop client
+Comment[zh_CN]=网易云音乐桌面客户端
+Exec=NekoNightMusic
+Icon=nekonight
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+StartupWMClass=Neko.night - Music

@@ -1,6 +1,6 @@
 # Neko.night - Music
 
-C++ 核心 + PyQt6 界面的 Windows 桌面网易云音乐工具。
+C++ 核心 + PyQt6 界面的 Windows / Linux 桌面网易云音乐工具。
 
 > 本仓库提供安装程序下载与完整源码（PyQt6 UI + C++ 核心）；不包含任何用户 Cookie 或密钥。代码以 MIT 许可证开源。
 
@@ -12,8 +12,9 @@ C++ 核心 + PyQt6 界面的 Windows 桌面网易云音乐工具。
 
 - `Neko.night-Music-Setup-x.y.z.exe`：安装版，双击安装即可
 - `Neko.night-Music-Portable-x.y.z.zip`：便携绿色版，解压后运行 `NeteaseMusic.exe`，配置保存在程序目录 `config/`
+- `Neko.night-Music-Linux-x86_64-x.y.z.tar.gz`：Linux 版，解压后运行 `NekoNightMusic-Linux/NekoNightMusic`
 
-系统要求：Windows 10 / 11（64 位）。发布页同时附安装包与便携版 SHA256 校验值。
+系统要求：Windows 10 / 11（64 位），或 Linux x86_64（glibc 2.35+，如 Ubuntu 22.04+）。发布页同时附安装包与便携版 SHA256 校验值。
 
 国内镜像：[Gitee 仓库](https://gitee.com/Neko-night/Neko.night-music) · [Gitee 发行版下载](https://gitee.com/Neko-night/Neko.night-music/releases)
 
@@ -29,11 +30,23 @@ C++ 核心 + PyQt6 界面的 Windows 桌面网易云音乐工具。
 
 ## 从源码构建
 
+Windows（需要 VS2022 + CMake）：
+
 ```powershell
 python -m pip install -r requirements.txt
-.\build.ps1        # 编译 C++ 核心（需要 VS2022 + CMake）
+.\build.ps1        # 编译 C++ 核心
 python run.py
 ```
+
+Linux（需要 g++ / CMake / libcurl / OpenSSL 开发包）：
+
+```bash
+sudo apt install cmake g++ libcurl4-openssl-dev libssl-dev
+bash build.sh      # 编译 C++ 核心
+python run.py
+```
+
+Linux 桌面菜单注册：解压发布包后执行 `./install-desktop.sh`。
 
 ## 功能
 
@@ -47,6 +60,7 @@ python run.py
 - **下载增强**：断点续传、失败自动重试、命名模板、跳过已存在、并发控制
 - **维护**：应用内检查更新、封面缓存占用查看与一键清理
 - **安全**：安装包内不含任何 Cookie 或密钥；Cookie 仅保存在本地 config 目录
+- **平台差异**：实时频谱与全局媒体键为 Windows 专属；Linux 端通过扫码 / 账号密码 / 浏览器登录
 
 ## 字体
 

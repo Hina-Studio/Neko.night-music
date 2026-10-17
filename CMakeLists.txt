@@ -10,12 +10,24 @@ option(NCM_PUBLIC "Build without the online/aggregate API classes" OFF)
 find_package(pybind11 CONFIG REQUIRED)
 
 set(NCM_SOURCES
-    core/src/crypto.cpp
-    core/src/http.cpp
     core/src/api.cpp
     core/src/bindings.cpp
-    core/src/spectrum.cpp
 )
+
+if(WIN32)
+    list(APPEND NCM_SOURCES
+        core/src/crypto.cpp
+        core/src/http.cpp
+        core/src/spectrum.cpp
+    )
+else()
+    list(APPEND NCM_SOURCES
+        core/src/crypto_openssl.cpp
+        core/src/http_curl.cpp
+    )
+    find_package(CURL REQUIRED)
+    find_package(OpenSSL REQUIRED)
+endif()
 
 if(NOT NCM_PUBLIC)
     list(APPEND NCM_SOURCES
@@ -31,9 +43,12 @@ target_include_directories(ncm_core PRIVATE
     core/third_party
 )
 
-target_link_libraries(ncm_core PRIVATE winhttp bcrypt ole32)
-
-target_compile_definitions(ncm_core PRIVATE _WIN32_WINNT=0x0A00 NOMINMAX WIN32_LEAN_AND_MEAN)
+if(WIN32)
+    target_link_libraries(ncm_core PRIVATE winhttp bcrypt ole32)
+    target_compile_definitions(ncm_core PRIVATE _WIN32_WINNT=0x0A00 NOMINMAX WIN32_LEAN_AND_MEAN)
+else()
+    target_link_libraries(ncm_core PRIVATE CURL::libcurl OpenSSL::Crypto OpenSSL::SSL)
+endif()
 
 if(NCM_PUBLIC)
     target_compile_definitions(ncm_core PRIVATE NCM_PUBLIC)

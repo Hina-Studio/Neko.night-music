@@ -58,7 +58,7 @@ from workers import ProgressBridge, get_download_pool, run_async, run_download, 
 
 TRACK_ROLE = Qt.ItemDataRole.UserRole
 
-APP_VERSION = "1.2.1"
+APP_VERSION = "1.3.0"
 
 NAV_SEARCH = 0
 NAV_DISCOVER = 1
@@ -2857,9 +2857,12 @@ class MainWindow(QMainWindow):
         if not path:
             return
         try:
-            subprocess.Popen(["explorer", "/select,", str(path)])
+            if sys.platform == "win32":
+                subprocess.Popen(["explorer", "/select,", str(path)])
+            else:
+                subprocess.Popen(["xdg-open", str(Path(path).resolve().parent)])
         except OSError as exc:
-            self.statusBar().showMessage(f"无法打开资源管理器: {exc}", 5000)
+            self.statusBar().showMessage(f"无法打开文件管理器: {exc}", 5000)
 
     def _refresh_tracks_metadata(self, tracks):
         for track in tracks:
@@ -3068,6 +3071,9 @@ class MainWindow(QMainWindow):
             self._register_media_keys()
 
     def _register_media_keys(self):
+        if sys.platform != "win32":
+            self._hotkeys_registered = False
+            return
         try:
             import ctypes
 
