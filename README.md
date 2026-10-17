@@ -15,7 +15,7 @@ C++ 核心 + PyQt6 界面的 Windows 桌面网易云音乐工具。
 
 系统要求：Windows 10 / 11（64 位）。发布页同时附安装包与便携版 SHA256 校验值。
 
-代码镜像：[Gitee](https://gitee.com/Neko-night/Neko.night-music)（安装包请从上方 Releases 下载）。
+国内镜像：[Gitee 仓库](https://gitee.com/Neko-night/Neko.night-music) · [Gitee 发行版下载](https://gitee.com/Neko-night/Neko.night-music/releases)
 
 ## 截图
 
