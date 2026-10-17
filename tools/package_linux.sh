@@ -58,6 +58,7 @@ fi
 cp packaging/linux/NekoNightMusic.desktop "$BUNDLE/"
 cp packaging/linux/nekonight.png "$BUNDLE/"
 cp packaging/linux/install-desktop.sh "$BUNDLE/"
+cp packaging/linux/README.txt "$BUNDLE/"
 chmod +x "$BUNDLE/install-desktop.sh"
 
 tar -C release/linux -czf "$TAR" NekoNightMusic-Linux
