@@ -58,7 +58,7 @@ from workers import ProgressBridge, get_download_pool, run_async, run_download, 
 
 TRACK_ROLE = Qt.ItemDataRole.UserRole
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 
 NAV_SEARCH = 0
 NAV_DISCOVER = 1
